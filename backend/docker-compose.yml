@@ -1,7 +1,11 @@
-version: '3.8'
-
-services:
-  redis:
-    image: "redis:alpine"
-    ports:
-      - "6379:6379"
+game-logic:
+  build: ./services/game_logic
+  ports:
+    - "8004:8004"
+  environment:
+    - PORT=8004
+    - AI_WORD_GENERATOR_URL=http://ai-word-generator:8003
+    - REDIS_URL=redis://redis:6379
+  depends_on:
+    - redis
+    - ai-word-generator

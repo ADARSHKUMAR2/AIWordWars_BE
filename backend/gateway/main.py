@@ -30,12 +30,18 @@ register_proxy(
     target_url=os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001"),
 )
 
-# Protected routes will use register_proxy_with_header once session auth is added
-register_proxy_with_header(
-    app,
+register_proxy(
+    app, 
     path_prefix="/game",
-    target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8002"),
+    target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004")
 )
+
+# Protected routes will use register_proxy_with_header once session auth is added
+# register_proxy_with_header(
+#     app,
+#     path_prefix="/game",
+#     target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004"),
+# )
 
 
 @app.get("/")
