@@ -1,0 +1,90 @@
+- [ ] **Phase 0: Project Scaffolding**
+    - [ ] Create `AIWordWars_BE` monorepo or separate repos.
+    - [ ] Set up `docker-compose.yml` with PostgreSQL, Redis.
+    - [ ] Create initial FastAPI skeletons for:
+        - [ ] `api-gateway`
+        - [ ] `user-service`
+        - [ ] `game-logic-service`
+        - [ ] `ai-word-generator-service` (mock version)
+    - [ ] Create Unity Project, initialize Git, and add `.gitignore`.
+
+- [ ] **Phase 1: Core Loop & Auth**
+    - [ ] **`user-service`**:
+        - [ ] DB schema: `users` (id, username, hashed_password, email).
+        - [ ] Endpoint: `POST /register`.
+        - [ ] Endpoint: `POST /login` (returns JWT).
+        - [ ] Middleware for JWT validation.
+    - [ ] **`game-logic-service`**:
+        - [ ] Endpoint: `GET /puzzle/new` (returns hardcoded puzzle).
+        - [ ] Endpoint: `POST /puzzle/solve` (verifies answer).
+    - [ ] **Unity Client**:
+        - [ ] Scene: `Login`.
+        - [ ] Scene: `Register`.
+        - [ ] Scene: `Game`.
+        - [ ] C# `ApiService` class for handling HTTP requests.
+        - [ ] C# `AuthManager` for storing JWT.
+
+- [ ] **Phase 2: AI Word Generator**
+    - [ ] **`ai-word-generator-service`**:
+        - [ ] Set up LangGraph agent.
+        - [ ] Prompt engineering for generating word/scramble JSON output.
+        - [ ] Implement adaptive difficulty logic using Redis to store player timings.
+    - [ ] **`game-logic-service`**:
+        - [ ] Refactor `/puzzle/new` to call `ai-word-generator-service`.
+
+- [ ] **Phase 3: Expanding Modes**
+    - [ ] **`ai-word-generator-service`**:
+        - [ ] Add category parameter to word generation prompt.
+    - [ ] **`game-logic-service`**:
+        - [ ] DB Schema: `game_sessions` to track state (mode, score, timer, hearts).
+        - [ ] Logic for Time Attack combo scoring.
+    - [ ] **Unity Client**:
+        - [ ] Scene: `ModeSelect`.
+        - [ ] Update `Game` scene UI with timer/hearts display.
+
+- [ ] **Phase 4: Progression & Leaderboards**
+    - [ ] **`user-service`**:
+        - [ ] DB Schema: Extend `users` table with `xp`, `level`, `coins`.
+    - [ ] **`leaderboard-service`**:
+        - [ ] SDK integration with chosen leaderboard provider.
+        - [ ] Endpoint: `POST /scores`.
+        - [ ] Endpoint: `GET /scores/{board_id}`.
+    - [ ] **`daily-challenge-service`**:
+        - [ ] Implement scheduled task (e.g., Kubernetes CronJob, Celery Beat).
+    - [ ] **Unity Client**:
+        - [ ] Add Level/XP/Coin display to main menu/HUD.
+        - [ ] Scene: `Leaderboards`.
+
+- [ ] **Phase 5: 1v1 Multiplayer**
+    - [ ] **`matchmaking-service`**:
+        - [ ] Integrate Photon/Nakama SDK.
+        - [ ] Endpoint: `POST /match/create`.
+        - [ ] Endpoint: `POST /match/join`.
+    - [ ] **`multiplayer-session-service`**:
+        - [ ] Real-time logic using chosen multiplayer backend to sync game start and player answers.
+        - [ ] Logic to declare winner.
+    - [ ] **Unity Client**:
+        - [ ] Integrate multiplayer SDK.
+        - [ ] Scene: `MultiplayerLobby`.
+        - [ ] Add opponent progress display to `Game` scene.
+
+- [ ] **Phase 6: Advanced AI Features**
+    - [ ] **`ai-word-generator-service`**:
+        - [ ] New LangGraph chain for hints (`word` -> `hint`).
+        - [ ] New chain for definitions (`word` -> `explanation`).
+        - [ ] New chain for phrase battles (`topic` -> `phrase` -> `scrambled_phrase`).
+    - [ ] **Unity Client**:
+        - [ ] Add "Hint" button and UI panel.
+        - [ ] Add UI for custom category input.
+        - [ ] Create new `PhraseBattle` game scene.
+
+- [ ] **Phase 7: Monetization & Polish**
+    - [ ] **Backend**:
+        - [ ] DB Schema: `inventory`, `transactions`, `battle_pass`.
+        - [ ] Endpoints for validating IAP receipts.
+        - [ ] Endpoints for managing battle pass progress.
+    - [ ] **Unity Client**:
+        - [ ] Integrate Ads SDK.
+        - [ ] Integrate IAP SDK.
+        - [ ] Scene: `Shop`.
+        - [ ] Scene: `BattlePass`.
