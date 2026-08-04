@@ -33,31 +33,37 @@ You must add **both folders** to your VS Code workspace for me to have full acce
 ```
 /AIWordWars_BE/
 |
-├── 🐳 docker-compose.yml
-|
-└── 📁 services/
+└── 📁 backend/
     |
-    ├── 👤 user-service/
-    |   ├── Dockerfile
-    |   ├── requirements.txt
-    |   └── app/
-    |       ├── __init__.py
-    |       ├── main.py
-    |       ├── core/
-    |       ├── models/
-    |       └── api/
+    ├── 🐳 docker-compose.yml
+    ├── .gitignore
     |
-    ├── 🧠 game-logic-service/
-    |   └── ... (similar structure)
+    ├──  GATEWAY gateway/
+    |   ├── main.py
+    |   ├── .env
+    |   ├── controller/
+    |   ├── middleware/
+    |   ├── routes/
+    |   └── utils/
     |
-    ├── 🤖 ai-word-generator-service/
-    |   └── ... (similar structure)
+    ├── 📁 services/
+    |   |
+    |   ├── 👤 auth/
+    |   |   ├── main.py
+    |   |   ├── .env
+    |   |   ├── config/
+    |   |   ├── controllers/
+    |   |   ├── models/
+    |   |   └── routes/
+    |   |
+    |   └── ... (other services like game-logic, etc.)
     |
-    ├── 🏆 leaderboard-service/
-    |   └── ... (similar structure)
-    |
-    └──  GATEWAY api-gateway/
-        └── ... (similar structure)
+    └── 📁 shared/
+        ├── __init__.py
+        ├── redis_client.py
+        ├── session_manager.py
+        ├── exception_handlers.py
+        └── exceptions.py
 ```
 
 **2. Frontend Structure (`/Users/adarsh/AIWordWars_Unity_FE`)**

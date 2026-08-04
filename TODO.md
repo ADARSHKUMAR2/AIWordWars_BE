@@ -1,28 +1,38 @@
 - [ ] **Phase 0: Project Scaffolding**
-    - [ ] Create `AIWordWars_BE` monorepo or separate repos.
-    - [ ] Set up `docker-compose.yml` with PostgreSQL, Redis.
-    - [ ] Create initial FastAPI skeletons for:
-        - [ ] `api-gateway`
-        - [ ] `user-service`
-        - [ ] `game-logic-service`
-        - [ ] `ai-word-generator-service` (mock version)
+    - [ ] Create `backend` directory with `gateway`, `services`, and `shared` subdirectories.
+    - [ ] Set up `docker-compose.yml` with Redis.
+    - [ ] Create initial FastAPI skeletons for all services in the `services` directory.
+    - [ ] Create placeholder files in the `shared` directory.
     - [ ] Create Unity Project, initialize Git, and add `.gitignore`.
+    - [ ] Add `.gitignore` to the `backend` directory.
+    - [ ] Populate `docker-compose.yml` with Redis service.
+    - [ ] Populate `.gitignore` with Python and environment specific patterns.
 
 - [ ] **Phase 1: Core Loop & Auth**
-    - [ ] **`user-service`**:
+    - [ ] **`auth-service`**:
         - [ ] DB schema: `users` (id, username, hashed_password, email).
-        - [ ] Endpoint: `POST /register`.
-        - [ ] Endpoint: `POST /login` (returns JWT).
-        - [ ] Middleware for JWT validation.
+        - [ ] Endpoint: `POST /api/login`.
+        - [ ] Endpoint: `POST /api/logout`.
+        - [ ] Endpoint: `GET /api/me`.
+        - [ ] Endpoint: `POST /api/session/validate`.
+        - [ ] `login_or_register` controller logic.
     - [ ] **`game-logic-service`**:
         - [ ] Endpoint: `GET /puzzle/new` (returns hardcoded puzzle).
         - [ ] Endpoint: `POST /puzzle/solve` (verifies answer).
+    - [ ] **`gateway`**:
+        - [ ] Implement `register_proxy` and `register_proxy_with_header`.
+        - [ ] Route `/auth` to `auth-service`.
+        - [ ] Route `/game` to `game-logic-service`.
+    - [ ] **`shared`**:
+        - [ ] Implement `redis_client`.
+        - [ ] Implement `session_manager`.
+        - [ ] Implement `exception_handlers` and `exceptions`.
     - [ ] **Unity Client**:
         - [ ] Scene: `Login`.
         - [ ] Scene: `Register`.
         - [ ] Scene: `Game`.
         - [ ] C# `ApiService` class for handling HTTP requests.
-        - [ ] C# `AuthManager` for storing JWT.
+        - [ ] C# `AuthManager` for handling session cookies.
 
 - [ ] **Phase 2: AI Word Generator**
     - [ ] **`ai-word-generator-service`**:
