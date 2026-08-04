@@ -120,3 +120,5 @@ dmypy.json
 
 # VSCode
 .vscode/
+
+firebase-credentials.json
