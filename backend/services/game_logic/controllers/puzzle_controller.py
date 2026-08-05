@@ -41,6 +41,15 @@ def calculate_score(difficulty: int, time_taken: float, correct: bool) -> int:
     
     return base_score + time_bonus
 
+# ── XP & Coin rewards per difficulty ──────────────────────────
+def calculate_rewards(difficulty: int, correct: bool) -> tuple[int, int]:
+    """Returns (xp_earned, coins_earned) based on difficulty."""
+    if not correct:
+        return 0, 0
+    xp = difficulty * 10          # e.g. difficulty 5 → 50 XP
+    coins = max(5, difficulty * 3) # e.g. difficulty 5 → 15 coins
+    return xp, coins
+
 async def save_game_session(
     puzzle_id: str,
     difficulty: int,

@@ -1,6 +1,11 @@
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
-from services.auth.controllers.controller import login_or_register, get_user_by_uid
+from services.auth.controllers.controller import (
+    login_or_register,
+    get_user_by_uid, 
+    award_xp_and_coins, 
+    get_user_progression
+    )
 from shared.session_manager import create_session, validate_session, delete_session, get_user_id_from_session
 
 router = APIRouter(prefix="/api")
@@ -11,6 +16,11 @@ class LoginRequest(BaseModel):
 
 class SessionRequest(BaseModel):
     session_id: str
+
+class AwardRequest(BaseModel):
+    firebase_uid: str
+    xp_earned: int
+    coins_earned: int
 
 @router.post("/login")
 async def login(body: LoginRequest, response: Response):
@@ -91,3 +101,40 @@ async def validate_session_endpoint(body: SessionRequest):
         "valid": True, 
         "user_id": user_id
     }
+
+# ──────────────────────────────────────────────
+# XP required to reach each level
+# Level 1→2: 100 XP, Level 2→3: 250 XP, etc.
+# ──────────────────────────────────────────────
+
+@router.post("/progression/award")
+async def award_progression(body: AwardRequest):
+    """
+    Called by game-logic-service after a correct puzzle solve.
+    Awards XP and coins, handles level-up automatically.
+    """
+    try:
+        result = await award_xp_and_coins(
+            firebase_uid=body.firebase_uid,
+            xp_earned=body.xp_earned,
+            coins_earned=body.coins_earned,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/progression/{firebase_uid}")
+async def get_progression(firebase_uid: str):
+    """
+    Called by Unity client to display the player's level, XP, and coins on the HUD.
+    """
+    try:
+        result = await get_user_progression(firebase_uid)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

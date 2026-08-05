@@ -5,9 +5,11 @@ from services.game_logic.controllers.puzzle_controller import (
     create_new_puzzle,
     validate_answer,
     calculate_score,
-    save_game_session
+    save_game_session,
+    calculate_rewards
 )
 from services.game_logic.models.puzzle import Puzzle
+from services.game_logic.services.ai_client import award_progression
 from shared.redis_client import get_redis_client
 
 router = APIRouter(prefix="/api")
@@ -109,11 +111,25 @@ async def solve_puzzle(request: SolveRequest):
         score=score,
         user_id=request.user_id
     )
+
+    #  Award XP & Coins ──────────────────────────────
+    xp_earned, coins_earned = calculate_rewards(puzzle.difficulty, correct)
+    progression_result = None
+
+    if request.user_id and correct:
+        progression_result = await award_progression(
+            firebase_uid=request.user_id,
+            xp_earned=xp_earned,
+            coins_earned=coins_earned,
+        )
     
     return {
         "correct": correct,
         "time_taken": request.time_taken,
         "score": score,
         "feedback": "Correct! Great job!" if correct else "Incorrect. Try again!",
-        "correct_answer": None if correct else puzzle.word
+        "correct_answer": None if correct else puzzle.word,
+        "xp_earned": xp_earned,
+        "coins_earned": coins_earned,
+        "progression": progression_result,
     }
