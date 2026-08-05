@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from shared.exception_handlers import register_exception_handlers
+from shared.redis_client import get_redis_client, close_redis_client
 
 load_dotenv()
 
@@ -15,9 +16,11 @@ from services.auth.routes.routes import router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_firebase()
+    await get_redis_client()
     await connect_db()
     yield
     await disconnect_db()
+    await close_redis_client()
 
 
 app = FastAPI(title="WordWars AI - Auth Service", version="1.0.0", lifespan=lifespan)

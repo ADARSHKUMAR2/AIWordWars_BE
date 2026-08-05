@@ -1,6 +1,7 @@
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
+from shared.session_manager import get_user_id_from_session
 
 PROXY_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
@@ -45,7 +46,8 @@ def register_proxy(app: FastAPI, path_prefix: str, target_url: str):
 
 def register_proxy_with_header(app: FastAPI, path_prefix: str, target_url: str):
     """
-    Registers a reverse proxy that also injects the X-User-Id header.
+    Registers a reverse proxy that intercepts the Authorization header,
+    validates the Redis session, and injects the X-User-Id header.
     Used for protected routes that require authentication.
     """
     async_client = httpx.AsyncClient(base_url=target_url, timeout=PROXY_TIMEOUT)
@@ -53,13 +55,29 @@ def register_proxy_with_header(app: FastAPI, path_prefix: str, target_url: str):
 
     async def proxy_with_header_handler(request: Request, path: str):
         target_path = f"/{path}"
+
+        # 1. Extract the session ID from the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return Response(content="Unauthorized: Missing or invalid token", status_code=401)
+        
+        session_id = auth_header.split(" ")[1]
+        
+        # 2. Validate session and get user_id from Redis
+        user_id = await get_user_id_from_session(session_id)
+        if not user_id:
+            return Response(content="Unauthorized: Session expired or invalid", status_code=401)
+
         try:
             body_bytes = await request.body()
             headers = {
                 k: v for k, v in request.headers.items()
                 if k.lower() not in ("host", "content-length")
             }
-            # X-User-Id will be injected here once we add session middleware
+            
+            # 4. Inject the validated user ID!
+            headers["X-User-Id"] = user_id
+
             req = async_client.build_request(
                 method=request.method,
                 url=target_path,

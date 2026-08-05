@@ -3,13 +3,14 @@ from datetime import datetime, timezone
 from services.game_logic.models.puzzle import Puzzle
 from services.game_logic.models.game_session import GameSession
 from services.game_logic.services.ai_client import get_word_puzzle
+from typing import Optional
 
-async def create_new_puzzle(difficulty: int, mode: str = "simple", category: str = None):
+async def create_new_puzzle(difficulty: int, mode: str = None, category: Optional[str] = None, user_id: Optional[str] = None) -> Puzzle:
     """Generate a new puzzle using AI service"""
     
     # Call AI service
-    ai_puzzle = await get_word_puzzle(difficulty)
-    
+    ai_puzzle = await get_word_puzzle(difficulty, mode, category, user_id)
+
     # Add game logic metadata
     puzzle = Puzzle(
         puzzle_id=str(uuid.uuid4()), 

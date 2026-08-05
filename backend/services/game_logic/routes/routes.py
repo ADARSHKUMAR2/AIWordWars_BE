@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
 from services.game_logic.controllers.puzzle_controller import (
@@ -8,6 +8,7 @@ from services.game_logic.controllers.puzzle_controller import (
     save_game_session
 )
 from services.game_logic.models.puzzle import Puzzle
+from shared.redis_client import get_redis_client
 
 router = APIRouter(prefix="/api")
 
@@ -18,6 +19,7 @@ class NewPuzzleRequest(BaseModel):
     difficulty: int = 5
     mode: str = "simple"
     category: str | None = None
+    user_id: str | None = None
 
 class SolveRequest(BaseModel):
     puzzle_id: str
@@ -26,7 +28,7 @@ class SolveRequest(BaseModel):
     user_id: Optional[str] = None
 
 @router.post("/puzzle/new")
-async def get_new_puzzle(request: NewPuzzleRequest):
+async def get_new_puzzle(request: NewPuzzleRequest, x_user_id: str = Header(None)):
     """Generate a new puzzle"""
     try:
         if not 1 <= request.difficulty <= 10:
@@ -35,7 +37,8 @@ async def get_new_puzzle(request: NewPuzzleRequest):
         puzzle = await create_new_puzzle(
             difficulty=request.difficulty,
             mode=request.mode,
-            category=request.category
+            category=request.category,
+            user_id=request.user_id
         )
         
         # Cache the puzzle for validation
@@ -74,6 +77,26 @@ async def solve_puzzle(request: SolveRequest):
     
     # Calculate score
     score = calculate_score(puzzle.difficulty, request.time_taken, correct)
+
+    # Store solve time in Redis if user solved correctly
+    if request.user_id and correct:
+        try:
+            redis = await get_redis_client()
+            key = f"player:{request.user_id}:solve_times"
+            
+            # Add the solve time to the list (most recent first)
+            await redis.lpush(key, str(request.time_taken))
+            
+            # Keep only the last 10 solve times
+            await redis.ltrim(key, 0, 9)
+            
+            # Set expiry to 30 days
+            await redis.expire(key, 60 * 60 * 24 * 30)
+            
+            print(f"✅ Stored solve time {request.time_taken}s for user {request.user_id}")
+        except Exception as e:
+            print(f"⚠️ Failed to store solve time in Redis: {e}")
+            # Don't fail the request if Redis fails
     
     # Save game session to DB
     await save_game_session(

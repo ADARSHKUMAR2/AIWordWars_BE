@@ -1,12 +1,16 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.ai_word_generator.controllers.word_generator import generate_word
+from typing import Optional
 
 router = APIRouter(prefix="/api")
 
 
 class GenerateRequest(BaseModel):
     difficulty: int = 1
+    mode: str = "simple"
+    category: Optional[str] = None
+    user_id: Optional[str] = None
 
 
 @router.post("/generate")
@@ -21,7 +25,7 @@ async def generate_puzzle(body: GenerateRequest):
         raise HTTPException(status_code=400, detail="Difficulty must be between 1 and 10")
     
     try:
-        puzzle = generate_word(body.difficulty)
+        puzzle = generate_word(body.difficulty, body.category, body.mode, body.user_id)
         return puzzle
     except Exception as e:
         if isinstance(e, HTTPException):

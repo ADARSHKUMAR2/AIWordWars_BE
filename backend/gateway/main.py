@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from gateway.utils import setup_cors, register_proxy, register_proxy_with_header
 from shared.exception_handlers import register_exception_handlers
+from shared.redis_client import get_redis_client, close_redis_client
 
 load_dotenv()
 
@@ -12,8 +13,10 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Gateway starting up...")
+    await get_redis_client()
     yield
     print("🛑 Gateway shutting down...")
+    await close_redis_client()
     if hasattr(app.state, "proxy_clients"):
         for client in app.state.proxy_clients:
             await client.aclose()
@@ -31,18 +34,11 @@ register_proxy(
     target_url=os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001"),
 )
 
-register_proxy(
-    app, 
+register_proxy_with_header(
+    app,
     path_prefix="/game",
-    target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004")
+    target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004"),
 )
-
-# Protected routes will use register_proxy_with_header once session auth is added
-# register_proxy_with_header(
-#     app,
-#     path_prefix="/game",
-#     target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004"),
-# )
 
 register_exception_handlers(app, "Gateway Service")
 
