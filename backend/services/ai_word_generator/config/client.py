@@ -21,7 +21,7 @@ def get_gemini_client():
 
     return ChatGroq(
     model="llama-3.3-70b-versatile",
-    temperature=0.2,
+    temperature=0.9,
     max_tokens=2500,
     api_key=os.getenv("GROQ_API_KEY"),
     max_retries=2,

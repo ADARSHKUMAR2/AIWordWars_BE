@@ -2,6 +2,8 @@ import random
 from typing import TypedDict
 from langchain_core.messages import HumanMessage, SystemMessage
 from services.ai_word_generator.config.client import get_gemini_client
+import uuid
+from rich import print
 
 
 class WordPuzzle(TypedDict):
@@ -37,15 +39,23 @@ def generate_word(difficulty: int = 1) -> WordPuzzle:
     # Create the prompt
     system_prompt = SystemMessage(content=
                                   """
-                                  You are a word puzzle generator. 
-Generate a single English word for a word scramble game. 
+                                  You are a highly creative word puzzle generator. 
+Generate a single, unique English word for a word scramble game. 
+You MUST provide a different word every time you are asked.
 Return ONLY the word, nothing else. No punctuation, no explanation.
 """)
-    
+
+    random_seed = str(uuid.uuid4())[:8]
+
+    categories = ["animals", "nature", "emotions", "technology", "food", "sports", "professions", "music", "colors", "space", "weather", "clothing"]
+    random_category = random.choice(categories)
+
     user_prompt = HumanMessage(content=
                                f"""
                                Generate a single {complexity} word that is {word_length} long.
-Return ONLY the word in uppercase, nothing else.
+                               The word MUST be related to this category: {random_category}
+Randomizer seed: {random_seed} (Use this to ensure you pick a completely different word than usual!)
+Return ONLY the word in uppercase, nothing else. No punctuation, no explanation.
 """)
     
     # Call Gemini
@@ -61,6 +71,8 @@ Return ONLY the word in uppercase, nothing else.
     while scrambled == word and len(word) > 1:
         random.shuffle(letters)
         scrambled = ''.join(letters)
+
+    print(f"[bold green]Generated word:[/bold green] {word} | [bold yellow]Scrambled:[/bold yellow] {scrambled} | [bold blue]Difficulty:[/bold blue] {difficulty}")
     
     return WordPuzzle(
         word=word,
