@@ -1,0 +1,4 @@
+gateway: uv run uvicorn gateway.main:app --host 0.0.0.0 --port 8000 --reload
+auth: uv run uvicorn services.auth.main:app --host 0.0.0.0 --port 8001 --reload
+game: uv run uvicorn services.game_logic.main:app --host 0.0.0.0 --port 8004 --reload
+ai: uv run uvicorn services.ai_word_generator.main:app --host 0.0.0.0 --port 8003 --reload

@@ -7,8 +7,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from services.game_logic.config.db import connect_db, disconnect_db
-from services.game_logic.routes.routes import router
 from shared.exception_handlers import register_exception_handlers
+from services.game_logic.routes.routes import router as classic_router
+from services.game_logic.routes.time_attack_routes import router as time_attack_router
+from services.game_logic.routes.survival_routes import router as survival_router
+
 
 
 @asynccontextmanager
@@ -26,7 +29,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.include_router(router)
+app.include_router(classic_router)
+app.include_router(time_attack_router)    
+app.include_router(survival_router) 
 
 register_exception_handlers(app, "Game Logic Service")
 
