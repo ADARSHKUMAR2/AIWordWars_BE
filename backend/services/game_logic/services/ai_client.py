@@ -4,6 +4,8 @@ from typing import Dict, Any, Optional
 
 AI_SERVICE_URL = os.getenv("AI_WORD_GENERATOR_URL", "http://localhost:8003")
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001")
+LEADERBOARD_SERVICE_URL = os.getenv("LEADERBOARD_SERVICE_URL", "http://127.0.0.1:8005")
+
 
 async def get_word_puzzle(difficulty: int, mode: str = "simple", category: str = None, user_id: str = None) -> Dict[str, Any]:
     """Call AI Word Generator service to get a puzzle"""
@@ -50,3 +52,41 @@ async def award_progression(
     except Exception as e:
         print(f"⚠️ Could not award progression: {e}")
         return None  
+
+async def submit_leaderboard_score(
+    firebase_uid: str,
+    display_name: Optional[str],
+    photo_url: Optional[str],
+    board_id: str,
+    mode: str,
+    score: int,
+) -> Optional[Dict[str, Any]]:
+    """
+    Call the Leaderboard Service to submit a player's score after a game.
+    Non-fatal — doesn't break the solve response if it fails.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{LEADERBOARD_SERVICE_URL}/api/scores",
+                json={
+                    "firebase_uid": firebase_uid,
+                    "display_name": display_name,
+                    "photo_url": photo_url,
+                    "board_id": board_id,
+                    "mode": mode,
+                    "score": score,
+                },
+                timeout=5.0
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                pb = "🆕 New personal best!" if data.get("is_personal_best") else "📊 Not a new best"
+                print(f"📋 Leaderboard [{board_id}/{mode}] for {firebase_uid}: score={score} — {pb}")
+                return data
+            else:
+                print(f"⚠️ Leaderboard submit failed [{resp.status_code}]: {resp.text}")
+                return None
+    except Exception as e:
+        print(f"⚠️ Could not submit leaderboard score: {e}")
+        return None

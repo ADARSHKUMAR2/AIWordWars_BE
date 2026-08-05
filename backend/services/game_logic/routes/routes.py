@@ -9,7 +9,7 @@ from services.game_logic.controllers.puzzle_controller import (
     calculate_rewards
 )
 from services.game_logic.models.puzzle import Puzzle
-from services.game_logic.services.ai_client import award_progression
+from services.game_logic.services.ai_client import award_progression, submit_leaderboard_score
 from shared.redis_client import get_redis_client
 
 router = APIRouter(prefix="/api")
@@ -28,6 +28,8 @@ class SolveRequest(BaseModel):
     answer: str
     time_taken: float
     user_id: Optional[str] = None
+    display_name: Optional[str] = None  # Optional: passed from Unity for leaderboard display name
+    photo_url: Optional[str] = None 
 
 @router.post("/puzzle/new")
 async def get_new_puzzle(request: NewPuzzleRequest, x_user_id: str = Header(None)):
@@ -115,6 +117,7 @@ async def solve_puzzle(request: SolveRequest):
     #  Award XP & Coins ──────────────────────────────
     xp_earned, coins_earned = calculate_rewards(puzzle.difficulty, correct)
     progression_result = None
+    leaderboard_result = None
 
     if request.user_id and correct:
         progression_result = await award_progression(
@@ -122,6 +125,18 @@ async def solve_puzzle(request: SolveRequest):
             xp_earned=xp_earned,
             coins_earned=coins_earned,
         )
+
+        leaderboard_result = await submit_leaderboard_score(
+            firebase_uid=request.user_id,
+            display_name=request.display_name,
+            photo_url=request.photo_url,
+            board_id="global",
+            mode=puzzle.mode or "simple",
+            score=score,
+        )
+
+    print(f"📤 Solve response → correct={correct}, score={score}, xp_earned={xp_earned}, coins_earned={coins_earned}")
+
     
     return {
         "correct": correct,
@@ -132,4 +147,5 @@ async def solve_puzzle(request: SolveRequest):
         "xp_earned": xp_earned,
         "coins_earned": coins_earned,
         "progression": progression_result,
+        "leaderboard": leaderboard_result,
     }

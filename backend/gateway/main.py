@@ -40,6 +40,13 @@ register_proxy_with_header(
     target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004"),
 )
 
+register_proxy(
+    app,
+    path_prefix="/leaderboard",
+    target_url=os.getenv("LEADERBOARD_SERVICE_URL", "http://127.0.0.1:8005"),
+)
+
+
 register_exception_handlers(app, "Gateway Service")
 
 @app.get("/")
@@ -58,4 +65,5 @@ if __name__ == "__main__":
     print(f"🚀 Gateway booting on port {PORT}...")
     print(f"📍 /auth → {os.getenv('AUTH_SERVICE_URL', 'http://127.0.0.1:8001')}")
     print(f"📍 /game → {os.getenv('GAME_SERVICE_URL', 'http://127.0.0.1:8002')}")
+    print(f"📍 /leaderboard → {os.getenv('LEADERBOARD_SERVICE_URL', 'http://127.0.0.1:8005')}")
     uvicorn.run("gateway.main:app", host="0.0.0.0", port=PORT, reload=True)
