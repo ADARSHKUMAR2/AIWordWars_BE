@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from gateway.utils import setup_cors, register_proxy, register_proxy_with_header
+from shared.exception_handlers import register_exception_handlers
 
 load_dotenv()
 
@@ -43,6 +44,7 @@ register_proxy(
 #     target_url=os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8004"),
 # )
 
+register_exception_handlers(app, "Gateway Service")
 
 @app.get("/")
 async def root():

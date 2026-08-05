@@ -8,6 +8,7 @@ load_dotenv()
 
 from services.game_logic.config.db import connect_db, disconnect_db
 from services.game_logic.routes.routes import router
+from shared.exception_handlers import register_exception_handlers
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ app = FastAPI(
 
 app.include_router(router)
 
+register_exception_handlers(app, "Game Logic Service")
 
 @app.get("/health")
 def health_check():

@@ -2,6 +2,7 @@ import os
 import uvicorn
 from fastapi import FastAPI
 from dotenv import load_dotenv
+from shared.exception_handlers import register_exception_handlers
 
 load_dotenv()
 
@@ -11,6 +12,7 @@ app = FastAPI(title="WordWars AI - AI Word Generator", version="1.0.0")
 
 app.include_router(router)
 
+register_exception_handlers(app, "AI Word Generator Service")
 
 @app.get("/health")
 def health_check():

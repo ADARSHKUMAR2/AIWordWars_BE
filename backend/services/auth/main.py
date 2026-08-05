@@ -3,6 +3,7 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
+from shared.exception_handlers import register_exception_handlers
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ app = FastAPI(title="WordWars AI - Auth Service", version="1.0.0", lifespan=life
 
 app.include_router(router)
 
+register_exception_handlers(app, "Auth Service")
 
 @app.get("/health")
 def health_check():

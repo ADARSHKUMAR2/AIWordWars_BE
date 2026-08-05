@@ -39,7 +39,8 @@ async def get_new_puzzle(request: NewPuzzleRequest):
         )
         
         # Cache the puzzle for validation
-        puzzle_cache[puzzle["puzzle_id"]] = puzzle
+        puzzle_cache[puzzle.puzzle_id] = puzzle
+
         
         return {
             "puzzle_id": puzzle.puzzle_id,
