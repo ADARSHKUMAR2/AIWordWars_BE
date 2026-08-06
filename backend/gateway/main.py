@@ -58,6 +58,12 @@ register_proxy(
     target_url=os.getenv("MULTIPLAYER_SESSION_URL", "http://127.0.0.1:8007"),
 )
 
+register_proxy(
+    app,
+    path_prefix="/shop",
+    target_url=os.getenv("MONETIZATION_SERVICE_URL", "http://127.0.0.1:8008"),
+)
+
 register_exception_handlers(app, "Gateway Service")
 
 @app.get("/")
@@ -75,6 +81,8 @@ PORT = int(os.getenv("PORT", 8000))
 if __name__ == "__main__":
     print(f"🚀 Gateway booting on port {PORT}...")
     print(f"📍 /auth → {os.getenv('AUTH_SERVICE_URL', 'http://127.0.0.1:8001')}")
-    print(f"📍 /game → {os.getenv('GAME_SERVICE_URL', 'http://127.0.0.1:8002')}")
+    print(f"📍 /game → {os.getenv('GAME_SERVICE_URL', 'http://127.0.0.1:8004')}")
     print(f"📍 /leaderboard → {os.getenv('LEADERBOARD_SERVICE_URL', 'http://127.0.0.1:8005')}")
+    print(f"📍 /shop → {os.getenv('MONETIZATION_SERVICE_URL', 'http://127.0.0.1:8008')}")  # ADD THIS
+    
     uvicorn.run("gateway.main:app", host="0.0.0.0", port=PORT, reload=True)
