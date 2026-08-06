@@ -29,6 +29,7 @@ dependencies = [
     "google-auth>=2.56.2",
     "google-api-python-client>=2.198.0",
     "motor>=3.7.1",
+    "apscheduler>=3.11.3",
 ]
 
 [tool.pytest.ini_options]

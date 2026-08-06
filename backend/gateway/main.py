@@ -64,6 +64,12 @@ register_proxy(
     target_url=os.getenv("MONETIZATION_SERVICE_URL", "http://127.0.0.1:8008"),
 )
 
+register_proxy(
+    app,
+    path_prefix="/daily-challenge",
+    target_url=os.getenv("DAILY_CHALLENGE_SERVICE_URL", "http://127.0.0.1:8009"),
+)
+
 register_exception_handlers(app, "Gateway Service")
 
 @app.get("/")
