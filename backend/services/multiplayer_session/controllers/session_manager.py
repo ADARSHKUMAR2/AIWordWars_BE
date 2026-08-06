@@ -7,6 +7,7 @@ from fastapi import WebSocket
 import uuid
 
 from services.multiplayer_session.models.session import GameSession, PlayerState, SessionStatus
+from services.game_logic.models.multiplayer_history import MultiplayerHistory
 
 # ── In-memory stores ──────────────────────────────────────────────────────────
 # sessions: room_code → GameSession
@@ -18,6 +19,7 @@ connections: Dict[str, Dict[str, WebSocket]] = {}
 AI_SERVICE_URL = os.getenv("AI_WORD_GENERATOR_URL", "http://127.0.0.1:8003")
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001")
 LEADERBOARD_SERVICE_URL = os.getenv("LEADERBOARD_SERVICE_URL", "http://127.0.0.1:8005")
+GAME_LOGIC_SERVICE_URL = os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8002")
 
 GAME_TIME_LIMIT = 120  # seconds — both players must solve within this window
 
@@ -41,7 +43,7 @@ async def _award_win(winner_uid: str, difficulty: int):
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
-                f"{AUTH_SERVICE_URL}/auth/api/progression/award",
+                f"{AUTH_SERVICE_URL}/api/progression/award",
                 json={"firebase_uid": winner_uid, "xp_earned": xp, "coins_earned": coins},
                 timeout=10.0,
             )
@@ -56,7 +58,7 @@ async def _submit_leaderboard(winner_uid: str, time_taken: float, difficulty: in
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
-                f"{LEADERBOARD_SERVICE_URL}/leaderboard/api/scores",
+                f"{LEADERBOARD_SERVICE_URL}/api/scores",
                 json={
                     "firebase_uid": winner_uid,
                     "board_id": "multiplayer",
@@ -69,6 +71,34 @@ async def _submit_leaderboard(winner_uid: str, time_taken: float, difficulty: in
     except Exception as e:
         print(f"⚠️ Failed to submit leaderboard score: {e}")
 
+async def _save_match_history(room_code: str, players: list, winner_uid: Optional[str], loser_uid: Optional[str], word: str, difficulty: int, winning_time: Optional[float]):
+    """Saves the match result directly to MongoDB."""
+    print(f"🔄 Attempting to save match history for room {room_code}. Players: {players}")
+    
+    if not players:
+        print(f"⚠️ No players found in room {room_code}, skipping history save.")
+        return
+        
+    try:
+        player1 = players[0] if len(players) > 0 else "unknown_1"
+        player2 = players[1] if len(players) > 1 else "unknown_2"
+        
+        # Create the document and insert it directly into MongoDB
+        history = MultiplayerHistory(
+            room_code=room_code,
+            player1_uid=player1,
+            player2_uid=player2,
+            winner_uid=winner_uid,
+            loser_uid=loser_uid,
+            word=word,
+            difficulty=difficulty,
+            winning_time=winning_time
+        )
+        await history.insert()
+        
+        print(f"💾 Match history saved to MongoDB for room {room_code}")
+    except Exception as e:
+        print(f"⚠️ Failed to save match history: {e}")
 
 async def broadcast(room_code: str, message: dict):
     """Send a JSON message to ALL connected players in a room."""
@@ -218,6 +248,18 @@ async def handle_answer_submit(room_code: str, user_id: str, answer: str, time_t
     session.loser_id = loser_id
     session.status = SessionStatus.finished
 
+    print(f"🏆 {user_id} won room {room_code} in {time_taken}s!")
+
+    # Award XP/coins and update leaderboard (non-blocking background tasks)
+    asyncio.create_task(_award_win(user_id, session.difficulty))
+    asyncio.create_task(_submit_leaderboard(user_id, time_taken, session.difficulty))
+
+    # Save to MongoDB
+    players_list = list(session.players.keys())
+    await _save_match_history(
+        room_code, players_list, user_id, loser_id, session.word, session.difficulty, time_taken
+    )
+
     # Broadcast game_over to BOTH players with personalised result
     room_conns = connections.get(room_code, {})
     for uid, ws in room_conns.items():
@@ -234,14 +276,8 @@ async def handle_answer_submit(room_code: str, user_id: str, answer: str, time_t
         except Exception:
             pass
 
-    print(f"🏆 {user_id} won room {room_code} in {time_taken}s!")
-
-    # Award XP/coins and update leaderboard (non-blocking background tasks)
-    asyncio.create_task(_award_win(user_id, session.difficulty))
-    asyncio.create_task(_submit_leaderboard(user_id, time_taken, session.difficulty))
-
     # Clean up session after a delay
-    asyncio.create_task(_cleanup_session(room_code, delay=30))
+    asyncio.create_task(_cleanup_session(room_code, delay=10))
 
 
 async def _game_timeout(room_code: str, time_limit: int):
@@ -252,19 +288,30 @@ async def _game_timeout(room_code: str, time_limit: int):
     await asyncio.sleep(time_limit)
 
     session = sessions.get(room_code)
-    if session and session.status == SessionStatus.active:
-        session.status = SessionStatus.finished
-        await broadcast(room_code, {
-            "type": "game_over",
-            "winner_id": None,
-            "loser_id": None,
-            "correct_word": session.word,
-            "winning_time": None,
-            "your_result": "draw",
-        })
-        print(f"⏰ Room {room_code} timed out — no winner.")
-        asyncio.create_task(_cleanup_session(room_code, delay=10))
+    
+    # If session is None or already finished, the game ended naturally. Do nothing!
+    if not session or session.status != SessionStatus.active:
+        return
 
+    print(f"⏰ Room {room_code} timed out — no winner.")
+    session.status = SessionStatus.finished
+
+    # Save Draw to MongoDB
+    players_list = list(session.players.keys())
+    await _save_match_history(
+        room_code, players_list, None, None, session.word, session.difficulty, None
+    )
+
+    await broadcast(room_code, {
+        "type": "game_over",
+        "winner_id": None,
+        "loser_id": None,
+        "correct_word": session.word,
+        "winning_time": None,
+        "your_result": "draw",
+    })
+
+    asyncio.create_task(_cleanup_session(room_code, delay=10))
 
 async def _cleanup_session(room_code: str, delay: int = 30):
     """Remove session and connections from memory after a delay."""

@@ -10,6 +10,7 @@ from services.game_logic.controllers.puzzle_controller import (
 )
 from services.game_logic.models.puzzle import Puzzle
 from services.game_logic.services.ai_client import award_progression, submit_leaderboard_score
+from services.game_logic.models.multiplayer_history import MultiplayerHistory
 from shared.redis_client import get_redis_client
 
 router = APIRouter(prefix="/api")
@@ -30,6 +31,16 @@ class SolveRequest(BaseModel):
     user_id: Optional[str] = None
     display_name: Optional[str] = None  # Optional: passed from Unity for leaderboard display name
     photo_url: Optional[str] = None 
+
+class MultiplayerHistoryRequest(BaseModel):
+    room_code: str
+    player1_uid: str
+    player2_uid: str
+    winner_uid: Optional[str] = None
+    loser_uid: Optional[str] = None
+    word: str
+    difficulty: int
+    winning_time: Optional[float] = None
 
 @router.post("/puzzle/new")
 async def get_new_puzzle(request: NewPuzzleRequest, x_user_id: str = Header(None)):
@@ -149,3 +160,22 @@ async def solve_puzzle(request: SolveRequest):
         "progression": progression_result,
         "leaderboard": leaderboard_result,
     }
+
+@router.post("/multiplayer/history")
+async def save_multiplayer_history(request: MultiplayerHistoryRequest):
+    """Save the result of a multiplayer match to the database."""
+    try:
+        history = MultiplayerHistory(
+            room_code=request.room_code,
+            player1_uid=request.player1_uid,
+            player2_uid=request.player2_uid,
+            winner_uid=request.winner_uid,
+            loser_uid=request.loser_uid,
+            word=request.word,
+            difficulty=request.difficulty,
+            winning_time=request.winning_time
+        )
+        await history.insert()
+        return {"status": "success", "message": "Match history saved."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save history: {str(e)}")

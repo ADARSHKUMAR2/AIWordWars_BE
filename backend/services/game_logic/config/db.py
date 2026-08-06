@@ -3,6 +3,7 @@ from pymongo import AsyncMongoClient
 from beanie import init_beanie
 from services.game_logic.models.puzzle import Puzzle
 from services.game_logic.models.game_session import GameSession
+from services.game_logic.models.multiplayer_history import MultiplayerHistory
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,9 +23,9 @@ async def connect_db():
 
         await init_beanie(
             database=db,
-            document_models=[Puzzle, GameSession]
+            document_models=[Puzzle, GameSession, MultiplayerHistory],  
         )
-        print("✅ Game Logic DB connected, Puzzle and GameSession models registered")
+        print("✅ Game Logic DB connected, Puzzle, GameSession, and MultiplayerHistory registered")
 
     except Exception as error:
         print(f"❌ DB error: {error}")
