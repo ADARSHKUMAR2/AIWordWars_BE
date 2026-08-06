@@ -4,6 +4,7 @@ import httpx
 import os
 from typing import Dict, Optional
 from fastapi import WebSocket
+import uuid
 
 from services.multiplayer_session.models.session import GameSession, PlayerState, SessionStatus
 
@@ -126,7 +127,7 @@ async def handle_player_connect(room_code: str, user_id: str, websocket: WebSock
 
         session = GameSession(
             room_code=room_code,
-            puzzle_id=puzzle_data["puzzle_id"],
+            puzzle_id=str(uuid.uuid4()),
             word=puzzle_data["word"],
             scrambled=puzzle_data["scrambled"],
             difficulty=puzzle_data.get("difficulty", 5),
