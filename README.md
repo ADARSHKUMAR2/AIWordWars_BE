@@ -40,3 +40,15 @@ To ensure zero database lag during high-speed gameplay, the Game Logic service r
     uv run honcho start
     ```
     *This uses the `Procfile` to boot Redis, the Gateway, Auth, Game Logic, and AI services concurrently with color-coded logs.*
+
+    *You can also run each service separately:*
+    ```bash
+    uv run redis-server
+    uv run uvicorn gateway.main:app --reload
+    uv run uvicorn services.auth.main:app --reload
+    uv run uvicorn services.game_logic.main:app --reload
+    uv run uvicorn services.ai_word_generator.main:app --reload
+    uv run uvicorn services.leaderboard.main:app --reload
+    uv run uvicorn services.matchmaking.main:app --reload
+    uv run uvicorn services.multiplayer_session.main:app --reload
+    ```

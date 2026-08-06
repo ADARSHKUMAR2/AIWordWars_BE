@@ -3,3 +3,6 @@ auth: FORCE_COLOR=1 uv run uvicorn services.auth.main:app --host 0.0.0.0 --port 
 game: FORCE_COLOR=1 uv run uvicorn services.game_logic.main:app --host 0.0.0.0 --port 8004 --reload
 ai: FORCE_COLOR=1 uv run uvicorn services.ai_word_generator.main:app --host 0.0.0.0 --port 8003 --reload
 leaderboard: FORCE_COLOR=1 uv run uvicorn services.leaderboard.main:app --host 0.0.0.0 --port 8005 --reload
+matchmaking: FORCE_COLOR=1 uv run uvicorn services.matchmaking.main:app --host 0.0.0.0 --port 8006 --reload
+multiplayer: FORCE_COLOR=1 uv run uvicorn services.multiplayer_session.main:app --host 0.0.0.0 --port 8007 --reload
+

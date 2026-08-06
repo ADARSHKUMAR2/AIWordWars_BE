@@ -46,6 +46,17 @@ register_proxy(
     target_url=os.getenv("LEADERBOARD_SERVICE_URL", "http://127.0.0.1:8005"),
 )
 
+register_proxy(
+    app,
+    path_prefix="/matchmaking",
+    target_url=os.getenv("MATCHMAKING_SERVICE_URL", "http://127.0.0.1:8006"),
+)
+
+register_proxy(
+    app,
+    path_prefix="/multiplayer",
+    target_url=os.getenv("MULTIPLAYER_SESSION_URL", "http://127.0.0.1:8007"),
+)
 
 register_exception_handlers(app, "Gateway Service")
 
