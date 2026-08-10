@@ -1,10 +1,11 @@
+import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.matchmaking.controllers.controller import create_room, join_room, get_room
 
 router = APIRouter(prefix="/api")
 
-MULTIPLAYER_SESSION_WS_URL = "ws://localhost:8007"  # Change to deployed URL in production
+MULTIPLAYER_SESSION_WS_URL = os.getenv("MULTIPLAYER_SESSION_WS_URL", "ws://localhost:8007")
 
 
 class CreateRoomRequest(BaseModel):

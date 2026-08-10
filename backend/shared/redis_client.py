@@ -10,43 +10,39 @@ import redis.asyncio as redis
 from redis.asyncio import Redis
 
 # Global Redis client instance
-_redis_client: Optional[Redis] = None
+_redis_client = None
 
 
-async def get_redis_client() -> Redis:
+async def get_redis_client():
     """
     Get or create the Redis client singleton.
-    
-    Returns:
-        Redis: Async Redis client instance
-    
-    Usage:
-        redis = await get_redis_client()
-        await redis.set("key", "value")
-        value = await redis.get("key")
     """
     global _redis_client
     
     if _redis_client is None:
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        # 1. Try to get Upstash URL, fallback to local Redis
+        redis_url = os.getenv("UPSTASH_REDIS_REST_URL")
+        if redis_url is None:
+             redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         
-        _redis_client = redis.from_url(
-            redis_url,
-            encoding="utf-8",
-            decode_responses=True,
-            max_connections=10
-        )
+        # 2. Base arguments for both environments
+        kwargs = {
+            "encoding": "utf-8",
+            "decode_responses": True,
+            "max_connections": 10
+        }
+        
+        _redis_client = redis.from_url(redis_url, **kwargs)
         
         # Test connection
         try:
             await _redis_client.ping()
-            print(f"✅ Redis connected: {redis_url}")
+            print(f"✅ Redis connected to: {redis_url}")
         except Exception as e:
             print(f"❌ Redis connection failed: {e}")
             raise
     
     return _redis_client
-
 
 async def close_redis_client():
     """

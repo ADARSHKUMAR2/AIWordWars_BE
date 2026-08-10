@@ -1,11 +1,123 @@
-game-logic:
-  build: ./services/game_logic
-  ports:
-    - "8004:8004"
-  environment:
-    - PORT=8004
-    - AI_WORD_GENERATOR_URL=http://ai-word-generator:8003
-    - REDIS_URL=redis://redis:6379
-  depends_on:
-    - redis
-    - ai-word-generator
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "8000:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth:8080
+      - GAME_SERVICE_URL=http://game_logic:8080
+      - LEADERBOARD_SERVICE_URL=http://leaderboard:8080
+      - MATCHMAKING_SERVICE_URL=http://matchmaking:8080
+      - MULTIPLAYER_SESSION_URL=http://multiplayer_session:8080
+      - MONETIZATION_SERVICE_URL=http://monetization:8080
+      - DAILY_CHALLENGE_SERVICE_URL=http://daily_challenge:8080
+    depends_on:
+      - redis
+      - auth
+      - game_logic
+      - leaderboard
+      - matchmaking
+      - multiplayer_session
+      - daily_challenge
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    ports:
+      - "8001:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  ai_word_generator:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai_word_generator
+    ports:
+      - "8003:8080"
+    environment:
+      - PORT=8080
+      # Make sure to set GEMINI_API_KEY in your local environment or an .env file
+      - GEMINI_API_KEY=${GEMINI_API_KEY} 
+
+  game_logic:
+    build:
+      context: .
+      dockerfile: Dockerfile.game_logic
+    ports:
+      - "8004:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - AI_WORD_GENERATOR_URL=http://ai_word_generator:8080
+    depends_on:
+      - redis
+      - ai_word_generator
+
+  leaderboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.leaderboard
+    ports:
+      - "8005:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  matchmaking:
+    build:
+      context: .
+      dockerfile: Dockerfile.matchmaking
+    ports:
+      - "8006:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+      # This is sent to Unity, so it needs to be accessible from the host machine
+      - MULTIPLAYER_SESSION_WS_URL=ws://127.0.0.1:8007
+    depends_on:
+      - redis
+
+  multiplayer_session:
+    build:
+      context: .
+      dockerfile: Dockerfile.multiplayer_session
+    ports:
+      - "8007:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  daily_challenge:
+    build:
+      context: .
+      dockerfile: Dockerfile.daily_challenge
+    ports:
+      - "8009:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+volumes:
+  redis_data:

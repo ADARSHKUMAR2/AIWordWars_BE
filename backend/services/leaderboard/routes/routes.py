@@ -52,6 +52,7 @@ async def fetch_leaderboard(board_id: str, mode: str = "simple", limit: int = 20
         if limit > 100:
             raise HTTPException(status_code=400, detail="Limit cannot exceed 100")
         results = await get_leaderboard(board_id=board_id, mode=mode, limit=limit)
+        print(results)
         return {
             "board_id": board_id,
             "mode": mode,
