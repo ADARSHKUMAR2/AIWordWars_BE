@@ -9,7 +9,7 @@ The services were configured to use different ports in their local `.env` files 
 
 ## Solution Applied
 Updated `.github/workflows/deploy.yml` to:
-1. **Explicitly set PORT=8080** for all Cloud Run deployments
+1. **Remove PORT from environment variables** - Cloud Run automatically sets PORT=8080
 2. **Configure service-specific environment variables** (database URLs, API keys, service URLs)
 3. **Use GitHub Secrets** for sensitive data instead of hardcoding
 
@@ -92,8 +92,12 @@ curl https://wordwars-multiplayer-734983454951.asia-south1.run.app/health
 - Cloud Run expected services on port 8080
 - Health checks failed → deployment failed
 
-### After:
-- GitHub Actions explicitly sets PORT=8080
-- Environment variable overrides `.env` file values
+### After (Corrected):
+- Cloud Run automatically sets PORT=8080 (reserved environment variable)
+- Workflow no longer attempts to set PORT manually
+- Services use Cloud Run's PORT via `os.getenv("PORT", 8080)`
 - Services start on correct port
 - Health checks succeed → deployment succeeds
+
+### Important Note:
+Cloud Run reserves the `PORT` environment variable and sets it automatically. Attempting to set it manually via `--set-env-vars` causes a deployment error: `"reserved env names were provided: PORT"`. The services already use `os.getenv("PORT", 8080)` which will correctly read Cloud Run's automatically-injected PORT value.
