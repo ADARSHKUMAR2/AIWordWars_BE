@@ -63,10 +63,45 @@ jobs:
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:${{ github.sha }}
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:latest
 
+      - name: Set service-specific environment variables
+        id: set-env-vars
+        run: |
+          case "${{ matrix.service.name }}" in
+            "wordwars-gateway")
+              echo "ENV_VARS=PORT=8080,UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }},AUTH_SERVICE_URL=https://wordwars-auth-734983454951.asia-south1.run.app,GAME_SERVICE_URL=https://wordwars-game-734983454951.asia-south1.run.app,LEADERBOARD_SERVICE_URL=https://wordwars-leaderboard-734983454951.asia-south1.run.app,MATCHMAKING_SERVICE_URL=https://wordwars-matchmaking-734983454951.asia-south1.run.app,MULTIPLAYER_SESSION_URL=https://wordwars-multiplayer-734983454951.asia-south1.run.app,MONETIZATION_SERVICE_URL=https://wordwars-shop-734983454951.asia-south1.run.app,DAILY_CHALLENGE_SERVICE_URL=https://wordwars-daily-challenge-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-auth")
+              echo "ENV_VARS=PORT=8080,MONGODB_URL=${{ secrets.MONGODB_URL }}" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-game")
+              echo "ENV_VARS=PORT=8080,MONGODB_URL=${{ secrets.MONGODB_URL }},AI_WORD_GENERATOR_URL=https://wordwars-ai-word-generator-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-ai-word-generator")
+              echo "ENV_VARS=PORT=8080,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-daily-challenge")
+              echo "ENV_VARS=PORT=8080,UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-leaderboard")
+              echo "ENV_VARS=PORT=8080,MONGODB_URL=${{ secrets.MONGODB_URL }}" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-matchmaking")
+              echo "ENV_VARS=PORT=8080,MULTIPLAYER_SESSION_WS_URL=wss://wordwars-multiplayer-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
+              ;;
+            "wordwars-multiplayer")
+              echo "ENV_VARS=PORT=8080,MONGODB_URL=${{ secrets.MONGODB_URL }},AUTH_SERVICE_URL=https://wordwars-auth-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "ENV_VARS=PORT=8080" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ matrix.service.name }} \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
+            --set-env-vars ${{ steps.set-env-vars.outputs.ENV_VARS }} \
+            --allow-unauthenticated \
             --quiet
