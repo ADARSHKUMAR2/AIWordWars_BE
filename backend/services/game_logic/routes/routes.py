@@ -72,6 +72,7 @@ async def get_new_puzzle(request: NewPuzzleRequest, x_user_id: str = Header(None
     except HTTPException:
         raise
     except Exception as e:
+        print(f"❌ Error in get_new_puzzle: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate puzzle: {str(e)}")
 
 

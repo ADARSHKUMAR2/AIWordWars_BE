@@ -7,21 +7,31 @@ AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001")
 LEADERBOARD_SERVICE_URL = os.getenv("LEADERBOARD_SERVICE_URL", "http://127.0.0.1:8005")
 
 
+from fastapi import HTTPException
+
 async def get_word_puzzle(difficulty: int, mode: str = "simple", category: str = None, user_id: str = None) -> Dict[str, Any]:
     """Call AI Word Generator service to get a puzzle"""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{AI_SERVICE_URL}/api/generate",
-            json={
-                    "difficulty": difficulty,
-                    "category": category,
-                    "mode": mode,
-                    "user_id": user_id
-                 },
-            timeout=30.0
-        )
-        response.raise_for_status()
-        return response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{AI_SERVICE_URL}/api/generate",
+                json={
+                        "difficulty": difficulty,
+                        "category": category,
+                        "mode": mode,
+                        "user_id": user_id
+                     },
+                timeout=30.0
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        error_detail = e.response.text
+        print(f"❌ AI Service Error [{e.response.status_code}]: {error_detail}")
+        raise HTTPException(status_code=502, detail=f"AI Service returned an error: {error_detail}")
+    except httpx.RequestError as e:
+        print(f"❌ AI Service Connection Error: {str(e)}")
+        raise HTTPException(status_code=503, detail="Could not connect to AI Word Generator Service")
 
 async def award_progression(
     firebase_uid: str,
