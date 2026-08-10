@@ -71,7 +71,7 @@ jobs:
               echo "ENV_VARS=UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }},AUTH_SERVICE_URL=https://wordwars-auth-734983454951.asia-south1.run.app,GAME_SERVICE_URL=https://wordwars-game-734983454951.asia-south1.run.app,LEADERBOARD_SERVICE_URL=https://wordwars-leaderboard-734983454951.asia-south1.run.app,MATCHMAKING_SERVICE_URL=https://wordwars-matchmaking-734983454951.asia-south1.run.app,MULTIPLAYER_SESSION_URL=https://wordwars-multiplayer-734983454951.asia-south1.run.app,MONETIZATION_SERVICE_URL=https://wordwars-shop-734983454951.asia-south1.run.app,DAILY_CHALLENGE_SERVICE_URL=https://wordwars-daily-challenge-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
               ;;
             "wordwars-auth")
-              echo "ENV_VARS=MONGODB_URL=${{ secrets.MONGODB_URL }}" >> $GITHUB_OUTPUT
+              echo "ENV_VARS=MONGODB_URL=${{ secrets.MONGODB_URL }},UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" >> $GITHUB_OUTPUT
               ;;
             "wordwars-game")
               echo "ENV_VARS=MONGODB_URL=${{ secrets.MONGODB_URL }},AI_WORD_GENERATOR_URL=https://wordwars-ai-word-generator-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
@@ -86,7 +86,7 @@ jobs:
               echo "ENV_VARS=MONGODB_URL=${{ secrets.MONGODB_URL }}" >> $GITHUB_OUTPUT
               ;;
             "wordwars-matchmaking")
-              echo "ENV_VARS=MULTIPLAYER_SESSION_WS_URL=wss://wordwars-multiplayer-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
+              echo "ENV_VARS=UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }},MULTIPLAYER_SESSION_WS_URL=wss://wordwars-multiplayer-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
               ;;
             "wordwars-multiplayer")
               echo "ENV_VARS=MONGODB_URL=${{ secrets.MONGODB_URL }},AUTH_SERVICE_URL=https://wordwars-auth-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
