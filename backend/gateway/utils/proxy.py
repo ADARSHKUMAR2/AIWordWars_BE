@@ -17,10 +17,14 @@ def register_proxy(app: FastAPI, path_prefix: str, target_url: str):
     async def proxy_handler(request: Request, path: str):
         target_path = f"/{path}"
         try:
+            headers = {
+                k: v for k, v in request.headers.items()
+                if k.lower() not in ("host", "content-length")
+            }
             req = async_client.build_request(
                 method=request.method,
                 url=target_path,
-                headers=request.headers.raw,
+                headers=headers,
                 params=request.query_params,
                 content=await request.body(),
             )
