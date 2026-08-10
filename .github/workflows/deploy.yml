@@ -7,10 +7,9 @@ on:
   workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
 
 env:
-  PROJECT_ID: welcomed-terrapin-174702 # Update if this is not your project ID
+  PROJECT_ID: wordwars-backend
   REGION: asia-south1
-  ARTIFACT_REPO: wordwars-backend
-  IMAGE_PREFIX: wordwars-repo
+  ARTIFACT_REPO: wordwars-repo
 
 jobs:
   build-and-deploy:
@@ -56,18 +55,18 @@ jobs:
       - name: Build Docker Image
         run: |
           cd backend
-          docker build -f ${{ matrix.service.dockerfile }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }} .
-          docker tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }} ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
+          docker build -f ${{ matrix.service.dockerfile }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:${{ github.sha }} .
+          docker tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:${{ github.sha }} ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:latest
 
       - name: Push Docker Image
         run: |
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }}
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:latest
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ matrix.service.name }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ matrix.service.name }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --quiet
