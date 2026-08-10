@@ -80,7 +80,7 @@ jobs:
               echo "ENV_VARS=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_OUTPUT
               ;;
             "wordwars-daily-challenge")
-              echo "ENV_VARS=UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" >> $GITHUB_OUTPUT
+              echo "ENV_VARS=UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }},AI_WORD_GENERATOR_URL=https://wordwars-ai-word-generator-734983454951.asia-south1.run.app" >> $GITHUB_OUTPUT
               ;;
             "wordwars-leaderboard")
               echo "ENV_VARS=MONGODB_URL=${{ secrets.MONGODB_URL }}" >> $GITHUB_OUTPUT
