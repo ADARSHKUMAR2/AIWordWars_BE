@@ -8,6 +8,7 @@ import uuid
 
 from services.multiplayer_session.models.session import GameSession, PlayerState, SessionStatus
 from services.game_logic.models.multiplayer_history import MultiplayerHistory
+from shared.redis_client import get_redis_client
 
 # ── In-memory stores ──────────────────────────────────────────────────────────
 # sessions: room_code → GameSession
@@ -131,62 +132,88 @@ async def handle_player_connect(room_code: str, user_id: str, websocket: WebSock
     """
     Called when a player's WebSocket connects.
     - Stores the connection
-    - If both players are now connected, fetches a puzzle and starts the game
+    - Queries Redis to check if the room is fully formed (both players joined via matchmaking).
+    - If the room is 'ready' in Redis, and both players' WebSockets are connected, starts the game.
     """
     # Register the connection
     if room_code not in connections:
         connections[room_code] = {}
     connections[room_code][user_id] = websocket
 
-    # Create or update session
-    if room_code not in sessions:
-        sessions[room_code] = None  # Placeholder while we fetch puzzle
+    print(f"🔌 Player ({user_id}) connected WS for room {room_code}")
 
-    session = sessions.get(room_code)
+    # Tell the player they are waiting
+    await send_to_player(room_code, user_id, {
+        "type": "waiting",
+        "message": "Waiting for your opponent to connect...",
+    })
 
-    if session is None:
-        # First player connected — fetch puzzle and create session
-        print(f"🎮 Player 1 ({user_id}) connected to room {room_code}. Fetching puzzle...")
-        await send_to_player(room_code, user_id, {
-            "type": "waiting",
-            "message": "Waiting for your opponent to connect...",
-        })
+    # Fetch room state from Redis (created by Matchmaking Service)
+    redis = await get_redis_client()
+    raw_room = await redis.get(f"room:{room_code}")
+    
+    if not raw_room:
+        print(f"⚠️ Room {room_code} not found in Redis!")
+        return
 
-        # Fetch puzzle now so it's ready when player 2 joins
-        puzzle_data = await _fetch_puzzle(difficulty=5)
+    room_data = json.loads(raw_room)
+    room_status = room_data.get("status")
+    host_uid = room_data.get("host_uid")
+    guest_uid = room_data.get("guest_uid")
+    difficulty = room_data.get("difficulty", 5)
 
-        session = GameSession(
-            room_code=room_code,
-            puzzle_id=str(uuid.uuid4()),
-            word=puzzle_data["word"],
-            scrambled=puzzle_data["scrambled"],
-            difficulty=puzzle_data.get("difficulty", 5),
-            hint=puzzle_data.get("hint"),
-            status=SessionStatus.waiting,
-            players={user_id: PlayerState(user_id=user_id)},
-        )
-        sessions[room_code] = session
+    # Check if both players' WebSockets have connected
+    active_connections = connections.get(room_code, {})
+    if host_uid in active_connections and guest_uid in active_connections:
+        # Both WebSockets are here! Time to start the game.
+        
+        # Check if session already exists (maybe we already started it)
+        session = sessions.get(room_code)
+        
+        if session is None:
+            print(f"🎮 Both players connected to {room_code}. Fetching puzzle (diff: {difficulty})...")
+            puzzle_data = await _fetch_puzzle(difficulty=difficulty)
 
-    else:
-        # Second player connected — add them and start the game!
-        print(f"🎮 Player 2 ({user_id}) connected to room {room_code}. Starting game!")
-        session.players[user_id] = PlayerState(user_id=user_id)
-        session.status = SessionStatus.active
-        sessions[room_code] = session
+            session = GameSession(
+                room_code=room_code,
+                puzzle_id=str(uuid.uuid4()),
+                word=puzzle_data["word"],
+                scrambled=puzzle_data["scrambled"],
+                difficulty=puzzle_data.get("difficulty", difficulty),
+                hint=puzzle_data.get("hint"),
+                status=SessionStatus.active,
+                players={
+                    host_uid: PlayerState(user_id=host_uid),
+                    guest_uid: PlayerState(user_id=guest_uid)
+                },
+            )
+            sessions[room_code] = session
 
-        # Broadcast game_start to BOTH players simultaneously
-        await broadcast(room_code, {
-            "type": "game_start",
-            "puzzle_id": session.puzzle_id,
-            "scrambled": session.scrambled,
-            "difficulty": session.difficulty,
-            "hint": session.hint,
-            "time_limit": GAME_TIME_LIMIT,
-            "players": list(session.players.keys()),
-        })
+            # Broadcast game_start to BOTH players simultaneously
+            await broadcast(room_code, {
+                "type": "game_start",
+                "puzzle_id": session.puzzle_id,
+                "scrambled": session.scrambled,
+                "difficulty": session.difficulty,
+                "hint": session.hint,
+                "time_limit": GAME_TIME_LIMIT,
+                "players": list(session.players.keys()),
+            })
 
-        # Start the countdown timer in the background
-        asyncio.create_task(_game_timeout(room_code, GAME_TIME_LIMIT))
+            # Start the countdown timer in the background
+            asyncio.create_task(_game_timeout(room_code, GAME_TIME_LIMIT))
+        elif session.status == SessionStatus.active:
+            # Reconnection edge case: Game is already active, send state to reconnecting player
+            print(f"🔄 Player {user_id} reconnected to active game {room_code}")
+            await send_to_player(room_code, user_id, {
+                "type": "game_start",
+                "puzzle_id": session.puzzle_id,
+                "scrambled": session.scrambled,
+                "difficulty": session.difficulty,
+                "hint": session.hint,
+                "time_limit": GAME_TIME_LIMIT, # Note: this doesn't sync exact remaining time, just reset display
+                "players": list(session.players.keys()),
+            })
 
 
 async def handle_player_disconnect(room_code: str, user_id: str):
