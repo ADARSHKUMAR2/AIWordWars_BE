@@ -14,9 +14,18 @@ from shared.redis_client import get_redis_client
 
 # Local fallback words, selected to match the same difficulty bands as the AI prompt.
 FALLBACK_WORDS = {
-    "easy": ["CAT", "SUN", "BOOK", "FROG", "MOON", "FISH"],
-    "medium": ["APPLE", "BRIDGE", "PLANET", "GARDEN", "PYTHON", "STREAM"],
-    "hard": ["ELEPHANT", "NOTEBOOK", "MOUNTAIN", "TREASURE", "LANGUAGE", "KEYBOARD"],
+    "easy": [
+        "CAT", "SUN", "BOOK", "FROG", "MOON", "FISH",
+        "BIRD", "TREE", "STAR", "MILK", "DUCK", "LAMP", "RAIN",
+    ],
+    "medium": [
+        "APPLE", "BRIDGE", "PLANET", "GARDEN", "PYTHON", "STREAM",
+        "TIGER", "OCEAN", "CLOUD", "BREAD", "MUSIC", "SPOON", "RIVER",
+    ],
+    "hard": [
+        "ELEPHANT", "NOTEBOOK", "MOUNTAIN", "TREASURE", "LANGUAGE", "KEYBOARD",
+        "ADVENTURE", "BUTTERFLY", "COMPUTER", "SUNFLOWER", "CHOCOLATE", "IMPORTANT",
+    ],
 }
 
 class WordPuzzle(TypedDict):
