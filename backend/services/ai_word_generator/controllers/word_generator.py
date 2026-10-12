@@ -5,8 +5,19 @@ from services.ai_word_generator.config.client import get_gemini_client
 from rich import print
 import uuid
 from services.ai_word_generator.graph.graph import create_word_generator_graph
-from services.ai_word_generator.graph.nodes import WordGeneratorState
+from services.ai_word_generator.graph.nodes import (
+    WordGeneratorState,
+    generate_hint_node,
+    scramble_word_node,
+)
 from shared.redis_client import get_redis_client
+
+# Local fallback words, selected to match the same difficulty bands as the AI prompt.
+FALLBACK_WORDS = {
+    "easy": ["CAT", "SUN", "BOOK", "FROG", "MOON", "FISH"],
+    "medium": ["APPLE", "BRIDGE", "PLANET", "GARDEN", "PYTHON", "STREAM"],
+    "hard": ["ELEPHANT", "NOTEBOOK", "MOUNTAIN", "TREASURE", "LANGUAGE", "KEYBOARD"],
+}
 
 class WordPuzzle(TypedDict):
     """Word puzzle with word, scrambled letters, difficulty, and hint"""
@@ -59,13 +70,36 @@ def generate_word(difficulty: int = 1, category: Optional[str] = None, mode: str
         hint=""
     )
     
-    # Create and run the workflow
+    # Create and run the workflow. If the AI provider is unavailable, continue
+    # with a local word and run the normal scramble/hint steps.
     app = create_word_generator_graph()
-    final_state = app.invoke(initial_state)
+    generation_source = "AI"
+    try:
+        final_state = app.invoke(initial_state)
+    except Exception as error:
+        generation_source = "fallback"
+        if difficulty <= 3:
+            fallback_band = "easy"
+        elif difficulty <= 6:
+            fallback_band = "medium"
+        else:
+            fallback_band = "hard"
+
+        fallback_word = random.choice(FALLBACK_WORDS[fallback_band])
+        print(
+            f"[yellow]AI generation failed ({type(error).__name__}); "
+            f"using local {fallback_band} fallback word.[/yellow]"
+        )
+        initial_state["word"] = fallback_word
+        final_state = scramble_word_node(initial_state)
+        final_state = generate_hint_node(final_state)
     
-    print(f"[bold green]Generated word:[/bold green] {final_state['word']} | "
-          f"[bold yellow]Scrambled:[/bold yellow] {final_state['scrambled']} | "
-          f"[bold blue]Difficulty:[/bold blue] {final_state['difficulty']} | ")
+    print(
+        f"[bold green]Word source: {generation_source}[/bold green] | "
+        f"Word: {final_state['word']} | "
+        f"Scrambled: {final_state['scrambled']} | "
+        f"Difficulty: {final_state['difficulty']} | Category: {category}"
+    )
     
     return WordPuzzle(
         word=final_state["word"],

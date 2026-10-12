@@ -39,3 +39,26 @@ def test_generate_word_hard_difficulty(mock_gemini):
     assert result["word"] == "ALGORITHM"
     assert result["difficulty"] == 10
     assert len(result["word"]) >= 7
+
+@patch('services.ai_word_generator.controllers.word_generator.create_word_generator_graph')
+def test_generate_word_uses_local_fallback_when_ai_fails(mock_graph):
+    mock_graph.return_value.invoke.side_effect = RuntimeError("AI provider unavailable")
+
+    result = generate_word(difficulty=5, category="technology")
+
+    assert result["word"] in {"APPLE", "BRIDGE", "PLANET", "GARDEN", "PYTHON", "STREAM"}
+    assert len(result["word"]) in (5, 6)
+    assert sorted(result["scrambled"]) == sorted(result["word"])
+    assert result["hint"] == f"{len(result['word'])}-letter word"
+    mock_graph.return_value.invoke.assert_called_once()
+
+
+@patch('services.ai_word_generator.controllers.word_generator.create_word_generator_graph')
+def test_generate_word_fallback_matches_difficulty(mock_graph):
+    mock_graph.return_value.invoke.side_effect = RuntimeError("AI provider unavailable")
+
+    result = generate_word(difficulty=10)
+
+    assert result["word"] in {"ELEPHANT", "NOTEBOOK", "MOUNTAIN", "TREASURE", "LANGUAGE", "KEYBOARD"}
+    assert len(result["word"]) >= 7
+    assert result["difficulty"] == 10
