@@ -14,9 +14,12 @@ class PlayerState(BaseModel):
     connected: bool = True
     solved: bool = False
     time_taken: Optional[float] = None  # seconds taken to solve
+    score: int = 0
 
 
 class GameSession(BaseModel):
+    model_config = {"validate_assignment": True}
+
     room_code: str
     puzzle_id: str
     word: str                # The correct answer (server-side only, never sent to clients)
@@ -27,3 +30,7 @@ class GameSession(BaseModel):
     players: Dict[str, PlayerState] = {}   # keyed by user_id
     winner_id: Optional[str] = None
     loser_id: Optional[str] = None
+    question_number: int = 1
+    total_questions: int = 10
+    question_solved_by: Optional[str] = None
+    question_results: list[dict] = []

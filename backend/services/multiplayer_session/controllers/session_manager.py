@@ -22,7 +22,8 @@ AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:8001")
 LEADERBOARD_SERVICE_URL = os.getenv("LEADERBOARD_SERVICE_URL", "http://127.0.0.1:8005")
 GAME_LOGIC_SERVICE_URL = os.getenv("GAME_SERVICE_URL", "http://127.0.0.1:8002")
 
-GAME_TIME_LIMIT = 120  # seconds — both players must solve within this window
+GAME_TIME_LIMIT = 30  # seconds — both players must solve within this window
+TOTAL_QUESTIONS = 10
 
 
 async def _fetch_puzzle(difficulty: int) -> dict:
@@ -182,6 +183,7 @@ async def handle_player_connect(room_code: str, user_id: str, websocket: WebSock
                 difficulty=puzzle_data.get("difficulty", difficulty),
                 hint=puzzle_data.get("hint"),
                 status=SessionStatus.active,
+                total_questions=TOTAL_QUESTIONS,
                 players={
                     host_uid: PlayerState(user_id=host_uid),
                     guest_uid: PlayerState(user_id=guest_uid)
@@ -190,30 +192,33 @@ async def handle_player_connect(room_code: str, user_id: str, websocket: WebSock
             sessions[room_code] = session
 
             # Broadcast game_start to BOTH players simultaneously
-            await broadcast(room_code, {
-                "type": "game_start",
-                "puzzle_id": session.puzzle_id,
-                "scrambled": session.scrambled,
-                "difficulty": session.difficulty,
-                "hint": session.hint,
-                "time_limit": GAME_TIME_LIMIT,
-                "players": list(session.players.keys()),
-            })
+            await broadcast(room_code, _question_payload(session, "game_start"))
 
             # Start the countdown timer in the background
             asyncio.create_task(_game_timeout(room_code, GAME_TIME_LIMIT))
         elif session.status == SessionStatus.active:
             # Reconnection edge case: Game is already active, send state to reconnecting player
             print(f"🔄 Player {user_id} reconnected to active game {room_code}")
-            await send_to_player(room_code, user_id, {
-                "type": "game_start",
-                "puzzle_id": session.puzzle_id,
-                "scrambled": session.scrambled,
-                "difficulty": session.difficulty,
-                "hint": session.hint,
-                "time_limit": GAME_TIME_LIMIT, # Note: this doesn't sync exact remaining time, just reset display
-                "players": list(session.players.keys()),
-            })
+            await send_to_player(room_code, user_id, _question_payload(session, "game_start"))
+
+
+def _question_payload(session: GameSession, event_type: str) -> dict:
+    return {
+        "type": event_type,
+        "puzzle_id": session.puzzle_id,
+        "scrambled": session.scrambled,
+        "difficulty": session.difficulty,
+        "hint": session.hint,
+        "time_limit": GAME_TIME_LIMIT,
+        "question_number": session.question_number,
+        "total_questions": session.total_questions,
+        "scores": {uid: player.score for uid, player in session.players.items()},
+        "score_entries": [
+            {"user_id": uid, "score": player.score}
+            for uid, player in session.players.items()
+        ],
+        "players": list(session.players.keys()),
+    }
 
 
 async def handle_player_disconnect(room_code: str, user_id: str):
@@ -226,20 +231,20 @@ async def handle_player_disconnect(room_code: str, user_id: str):
     session = sessions.get(room_code)
     if session and session.status == SessionStatus.active:
         session.status = SessionStatus.finished
+        winner_id = next((uid for uid in session.players if uid != user_id), None)
+        session.winner_id = winner_id
+        session.loser_id = user_id
         await broadcast(room_code, {
             "type": "opponent_disconnected",
             "message": "Your opponent disconnected. You win by default!",
+            "winner_id": winner_id,
+            "your_result": "win",
         })
         print(f"⚠️ {user_id} disconnected from room {room_code}. Session ended.")
 
 
 async def handle_answer_submit(room_code: str, user_id: str, answer: str, time_taken: float):
-    """
-    Called when a player submits an answer.
-    - Validates it server-side
-    - If correct, declares them the winner
-    - If wrong, tells only them it was incorrect
-    """
+    """Validate a submission and advance or finish the ten-question match."""
     session = sessions.get(room_code)
     if not session or session.status != SessionStatus.active:
         await send_to_player(room_code, user_id, {
@@ -249,7 +254,7 @@ async def handle_answer_submit(room_code: str, user_id: str, answer: str, time_t
         return
 
     player = session.players.get(user_id)
-    if not player or player.solved:
+    if not player or player.solved or session.question_solved_by:
         return  # Already solved or unknown player
 
     is_correct = answer.strip().upper() == session.word.upper()
@@ -263,81 +268,127 @@ async def handle_answer_submit(room_code: str, user_id: str, answer: str, time_t
         })
         return
 
-    # ── Correct answer! ───────────────────────────────────────────────────────
+    # Correct answer wins this question, not the entire match. The first correct
+    # answer locks the question so it cannot score twice.
     player.solved = True
     player.time_taken = time_taken
-
-    # Find the other player (the loser)
-    other_uids = [uid for uid in session.players if uid != user_id]
-    loser_id = other_uids[0] if other_uids else None
-
-    session.winner_id = user_id
-    session.loser_id = loser_id
-    session.status = SessionStatus.finished
-
-    print(f"🏆 {user_id} won room {room_code} in {time_taken}s!")
-
-    # Award XP/coins and update leaderboard (non-blocking background tasks)
-    asyncio.create_task(_award_win(user_id, session.difficulty))
-    asyncio.create_task(_submit_leaderboard(user_id, time_taken, session.difficulty))
-
-    # Save to MongoDB
-    players_list = list(session.players.keys())
-    await _save_match_history(
-        room_code, players_list, user_id, loser_id, session.word, session.difficulty, time_taken
-    )
-
-    # Broadcast game_over to BOTH players with personalised result
-    room_conns = connections.get(room_code, {})
-    for uid, ws in room_conns.items():
-        your_result = "win" if uid == user_id else "lose"
-        try:
-            await ws.send_text(json.dumps({
-                "type": "game_over",
-                "winner_id": user_id,
-                "loser_id": loser_id,
-                "correct_word": session.word,
-                "winning_time": time_taken,
-                "your_result": your_result,
-            }))
-        except Exception:
-            pass
-
-    # Clean up session after a delay
-    asyncio.create_task(_cleanup_session(room_code, delay=10))
+    player.score += 1
+    session.question_solved_by = user_id
+    session.question_results.append({"question_number": session.question_number, "winner_id": user_id})
+    await broadcast(room_code, {
+        "type": "question_result",
+        "question_number": session.question_number,
+        "winner_id": user_id,
+        "correct_word": session.word,
+        "scores": {uid: state.score for uid, state in session.players.items()},
+        "score_entries": [
+            {"user_id": uid, "score": state.score}
+            for uid, state in session.players.items()
+        ],
+    })
+    await _advance_question(room_code)
 
 
 async def _game_timeout(room_code: str, time_limit: int):
-    """
-    Background task: if neither player solves within time_limit seconds,
-    declare it a draw.
-    """
+    """Advance to the next question when this question's timer expires."""
     await asyncio.sleep(time_limit)
 
     session = sessions.get(room_code)
-    
     # If session is None or already finished, the game ended naturally. Do nothing!
     if not session or session.status != SessionStatus.active:
         return
 
-    print(f"⏰ Room {room_code} timed out — no winner.")
+    if session.question_solved_by:
+        # A player already solved; the timeout should not terminate or skip this round.
+        return
+
+    print(f"⏰ Room {room_code}, question {session.question_number} timed out.")
+    session.question_results.append({"question_number": session.question_number, "winner_id": None})
+    await broadcast(room_code, {
+        "type": "question_result",
+        "question_number": session.question_number,
+        "winner_id": session.question_solved_by,
+        "correct_word": session.word,
+        "scores": {uid: state.score for uid, state in session.players.items()},
+        "score_entries": [
+            {"user_id": uid, "score": state.score}
+            for uid, state in session.players.items()
+        ],
+    })
+    await _advance_question(room_code)
+
+
+async def _advance_question(room_code: str):
+    session = sessions.get(room_code)
+    if not session or session.status != SessionStatus.active:
+        return
+
+    if session.question_number >= session.total_questions:
+        await _finish_match(room_code)
+        return
+
+    try:
+        puzzle_data = await _fetch_puzzle(session.difficulty)
+    except Exception as exc:
+        print(f"⚠️ Failed to fetch next puzzle for {room_code}: {exc}")
+        # Do not leave players in a live match with no question.
+        await _finish_match(room_code)
+        return
+
+    session.question_number += 1
+    session.puzzle_id = str(uuid.uuid4())
+    session.word = puzzle_data["word"]
+    session.scrambled = puzzle_data["scrambled"]
+    session.difficulty = puzzle_data.get("difficulty", session.difficulty)
+    session.hint = puzzle_data.get("hint")
+    session.question_solved_by = None
+    for player in session.players.values():
+        player.solved = False
+        player.time_taken = None
+
+    await broadcast(room_code, _question_payload(session, "next_question"))
+    asyncio.create_task(_game_timeout(room_code, GAME_TIME_LIMIT))
+
+
+async def _finish_match(room_code: str):
+    session = sessions.get(room_code)
+    if not session or session.status != SessionStatus.active:
+        return
+
+    ranked = sorted(session.players.values(), key=lambda player: player.score, reverse=True)
+    tied = len(ranked) > 1 and ranked[0].score == ranked[1].score
+    winner_id = None if tied else (ranked[0].user_id if ranked else None)
+    loser_id = next((uid for uid in session.players if uid != winner_id), None) if winner_id else None
+    session.winner_id = winner_id
+    session.loser_id = loser_id
     session.status = SessionStatus.finished
 
-    # Save Draw to MongoDB
+    if winner_id:
+        winner = session.players[winner_id]
+        asyncio.create_task(_award_win(winner_id, session.difficulty))
+        asyncio.create_task(_submit_leaderboard(winner_id, winner.time_taken or 1, session.difficulty))
+
     players_list = list(session.players.keys())
     await _save_match_history(
-        room_code, players_list, None, None, session.word, session.difficulty, None
+        room_code, players_list, winner_id, loser_id,
+        f"10-question match; scores: {', '.join(f'{uid}={player.score}' for uid, player in session.players.items())}",
+        session.difficulty, None,
     )
 
-    await broadcast(room_code, {
-        "type": "game_over",
-        "winner_id": None,
-        "loser_id": None,
-        "correct_word": session.word,
-        "winning_time": None,
-        "your_result": "draw",
-    })
-
+    # Send personalised final result to each player.
+    for uid in session.players:
+        await send_to_player(room_code, uid, {
+            "type": "game_over",
+            "winner_id": winner_id,
+            "loser_id": loser_id,
+            "scores": {player_uid: player.score for player_uid, player in session.players.items()},
+            "score_entries": [
+                {"user_id": player_uid, "score": player.score}
+                for player_uid, player in session.players.items()
+            ],
+            "question_results": session.question_results,
+            "your_result": "draw" if tied else ("win" if uid == winner_id else "lose"),
+        })
     asyncio.create_task(_cleanup_session(room_code, delay=10))
 
 async def _cleanup_session(room_code: str, delay: int = 30):

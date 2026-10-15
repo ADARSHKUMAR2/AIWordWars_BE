@@ -28,9 +28,9 @@ async def multiplayer_websocket(
     Messages the SERVER sends to CLIENT (JSON):
       { "type": "waiting", "message": "..." }
       { "type": "game_start", "puzzle_id": "...", "scrambled": "...", ... }
+      { "type": "next_question", "question_number": 2, "total_questions": 10, ... }
       { "type": "answer_result", "correct": false, "message": "..." }
-      { "type": "player_solved", "user_id": "...", "time_taken": 23.4 }
-      { "type": "game_over", "winner_id": "...", "your_result": "win|lose|draw", ... }
+      { "type": "game_over", "winner_id": "...", "scores": {...}, "your_result": "win|lose|draw", ... }
       { "type": "opponent_disconnected", "message": "..." }
       { "type": "error", "message": "..." }
     """
