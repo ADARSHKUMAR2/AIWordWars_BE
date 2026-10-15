@@ -29,11 +29,12 @@ FALLBACK_WORDS = {
 }
 
 class WordPuzzle(TypedDict):
-    """Word puzzle with word, scrambled letters, difficulty, and hint"""
+    """Word puzzle with word, scrambled letters, difficulty, hint, and category."""
     word: str
     scrambled: str
     difficulty: int
     hint: str
+    category: str
 
 def generate_word(difficulty: int = 1, category: Optional[str] = None, mode: str = "simple", user_id: Optional[str] = None) -> WordPuzzle:
     """
@@ -114,7 +115,8 @@ def generate_word(difficulty: int = 1, category: Optional[str] = None, mode: str
         word=final_state["word"],
         scrambled=final_state["scrambled"],
         difficulty=final_state['difficulty'],
-        hint=final_state["hint"]
+        hint=final_state["hint"],
+        category=category,
     )
 
 async def calculate_adaptive_difficulty(user_id: str, base_difficulty: int) -> int:

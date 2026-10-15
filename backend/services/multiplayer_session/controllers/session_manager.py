@@ -182,6 +182,7 @@ async def handle_player_connect(room_code: str, user_id: str, websocket: WebSock
                 scrambled=puzzle_data["scrambled"],
                 difficulty=puzzle_data.get("difficulty", difficulty),
                 hint=puzzle_data.get("hint"),
+                category=puzzle_data.get("category"),
                 status=SessionStatus.active,
                 total_questions=TOTAL_QUESTIONS,
                 players={
@@ -209,6 +210,7 @@ def _question_payload(session: GameSession, event_type: str) -> dict:
         "scrambled": session.scrambled,
         "difficulty": session.difficulty,
         "hint": session.hint,
+        "category": session.category,
         "time_limit": GAME_TIME_LIMIT,
         "question_number": session.question_number,
         "total_questions": session.total_questions,
@@ -341,6 +343,7 @@ async def _advance_question(room_code: str):
     session.scrambled = puzzle_data["scrambled"]
     session.difficulty = puzzle_data.get("difficulty", session.difficulty)
     session.hint = puzzle_data.get("hint")
+    session.category = puzzle_data.get("category")
     session.question_solved_by = None
     for player in session.players.values():
         player.solved = False

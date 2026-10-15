@@ -44,7 +44,13 @@ async def test_correct_answer_awards_question_point_and_loads_next_question():
     session_manager.sessions["ROOM1"] = session
     alice_ws, bob_ws = FakeWebSocket(), FakeWebSocket()
     session_manager.connections["ROOM1"] = {"alice": alice_ws, "bob": bob_ws}
-    puzzle = {"word": "GRAPE", "scrambled": "PAGER", "difficulty": 5, "hint": "fruit"}
+    puzzle = {
+        "word": "GRAPE",
+        "scrambled": "PAGER",
+        "difficulty": 5,
+        "hint": "fruit",
+        "category": "food",
+    }
 
     with patch.object(session_manager, "_fetch_puzzle", new=AsyncMock(return_value=puzzle)), \
          patch.object(session_manager, "_game_timeout", new=AsyncMock()):
@@ -55,9 +61,11 @@ async def test_correct_answer_awards_question_point_and_loads_next_question():
     assert session.status == SessionStatus.active
     assert session.question_number == 2
     assert session.word == "GRAPE"
+    assert session.category == "food"
     assert session.question_solved_by is None
     assert alice_ws.messages[-1]["type"] == "next_question"
     assert alice_ws.messages[-1]["question_number"] == 2
+    assert alice_ws.messages[-1]["category"] == "food"
     assert bob_ws.messages[-2]["type"] == "question_result"
 
 

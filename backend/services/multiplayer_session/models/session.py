@@ -26,6 +26,7 @@ class GameSession(BaseModel):
     scrambled: str           # The scrambled letters sent to players
     difficulty: int
     hint: Optional[str] = None
+    category: Optional[str] = None
     status: SessionStatus = SessionStatus.waiting
     players: Dict[str, PlayerState] = {}   # keyed by user_id
     winner_id: Optional[str] = None
